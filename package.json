@@ -1,0 +1,21 @@
+{
+    "name": "chat-multi",
+    "private": true,
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "dev-core": "npm run dev -w @chat-multi/core",
+        "dev-server": "npm run dev -w @chat-multi/chat-server",
+        "dev-svelte": "PORT=5155 npm run dev -w @chat-multi/chat-svelte",
+        "dev-vue": "npm run dev -w @chat-multi/chat-vue",
+        "dev-react": "npm run dev -w @chat-multi/chat-react",
+        "dev": "npm run dev-server & npm run dev-svelte & npm run dev-vue & npm run dev-react",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "author": "",
+    "license": "ISC",
+    "workspaces": [
+        "packages/*"
+    ]
+}
