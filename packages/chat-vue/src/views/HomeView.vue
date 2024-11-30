@@ -10,19 +10,40 @@ const selfId = 2
 const chats = ref<Chat[]>([])
 
 const text = ref("")
-let repliedChat = ref<Chat | null>(null)
+const repliedChat = ref<Chat | null>(null)
+const curImage = ref<string | null>(null)
 
 function send() {
-    socket.emit('chat', {
-        id: 0,
-        userId: 2,
-        userName: "Si Vue",
-        message: text.value,
-        date: new Date(),
-        replyChatId: repliedChat.value?.id,
-    } satisfies Chat)
+    let newChat: Chat
+    
+    if (curImage.value) {
+        newChat = {
+            id: 0,
+            userId: selfId,
+            userName: "Si Vue",
+            messageType: "image",
+            image: curImage.value,
+            message: text.value,
+            date: new Date(),
+            replyChatId: repliedChat.value?.id,
+        }
+    }
+    else {
+        newChat = {
+            id: 0,
+            userId: selfId,
+            userName: "Si Vue",
+            messageType: "text",
+            message: text.value,
+            date: new Date(),
+            replyChatId: repliedChat.value?.id,
+        }
+    }
+    
+    socket.emit('chat', newChat)
     
     text.value = ""
+    curImage.value = null
     repliedChat.value = null
 }
 
@@ -38,6 +59,35 @@ function getChatById(id: number): Chat | undefined {
     return chats.value.find(x => x.id === id)
 }
 
+async function readImageFromFile(file: File): Promise<string | ArrayBuffer | null> {
+    return new Promise((res) => {
+        const reader = new FileReader()
+        
+        reader.onload = function() {
+            res(reader.result)
+        }
+        
+        reader.readAsDataURL(file)
+    })
+}
+
+function onDrop(e: DragEvent) {
+    const file = e.dataTransfer?.files?.[0]
+    e.preventDefault()
+    
+    if (file) {
+        readImageFromFile(file)
+            .then(r => {
+                curImage.value = r?.toString() ?? null
+            })
+    }
+    
+}
+
+function cancelImage() {
+    curImage.value = null
+}
+
 onMounted(() => {
     socket.on('init-chats', (initChats: Chat[]) => {
         chats.value = initChats
@@ -51,9 +101,27 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="bg-gray-200 h-full flex flex-col">
+    <div
+        class="bg-gray-200 flex flex-col"
+        @dragover="e => e.preventDefault()"
+        @drop="onDrop"
+    >
         <div class="flex-1 p-4 flex flex-col">
-            <template v-for="chat in chats">
+            <div
+                v-if="curImage"
+                class="flex items-center justify-center relative p-4"
+            >
+                <img
+                    alt="img"
+                    :src="curImage"
+                />
+                
+                <button
+                    class="absolute right-3 top-1 text-gray-500 text-lg"
+                    onclick={cancelImage}
+                >x</button>
+            </div>
+            <template v-else v-for="chat in chats">
                 <div
                     v-if="chat.userId === selfId"
                     class="bg-emerald-300 my-1 p-3 rounded-lg flex flex-col self-end ml-8 group relative"
@@ -62,6 +130,12 @@ onMounted(() => {
                     <div v-if="chat.replyChatId" class="bg-white/30 px-2 py-1 text-sm my-1">
                         {{ getChatById(chat.replyChatId)?.message }}
                     </div>
+                    <img
+                        v-if="chat.messageType === 'image'"
+                        class="max-w-48"
+                        alt="img"
+                        :src="chat.image"
+                    />
                     <span>{{ chat.message }}</span>
                 
                     <button
@@ -79,6 +153,12 @@ onMounted(() => {
                     <div v-if="chat.replyChatId" class="bg-black/10 px-2 py-1 text-sm my-1">
                         {{ getChatById(chat.replyChatId)?.message }}
                     </div>
+                    <img
+                        v-if="chat.messageType === 'image'"
+                        class="max-w-48"
+                        alt="img"
+                        :src="chat.image"
+                    />
                     <span>{{ chat.message }}</span>
                 
                     <button

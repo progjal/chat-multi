@@ -9,18 +9,39 @@ const selfId = 3
 let chats = $state<Chat[]>([])
 let text = $state("")
 let repliedChat = $state<Chat | null>(null)
+let curImage = $state<string | null>(null)
 
 function send() {
-    socket.emit('chat', {
-        id: 0,
-        userId: 3,
-        userName: "Si Svelte",
-        message: text,
-        date: new Date(),
-        replyChatId: repliedChat?.id,
-    } satisfies Chat)
+    let newChat: Chat
+    
+    if (curImage) {
+        newChat = {
+            id: 0,
+            userId: 3,
+            userName: "Si Svelte",
+            messageType: "image",
+            image: curImage,
+            message: text,
+            date: new Date(),
+            replyChatId: repliedChat?.id,
+        }
+    }
+    else {
+        newChat = {
+            id: 0,
+            userId: 3,
+            userName: "Si Svelte",
+            messageType: "text",
+            message: text,
+            date: new Date(),
+            replyChatId: repliedChat?.id,
+        }
+    }
+    
+    socket.emit('chat', newChat)
     
     text = ""
+    curImage = null
     repliedChat = null
 }
 
@@ -36,6 +57,35 @@ function getChatById(id: number): Chat | undefined {
     return chats.find(x => x.id === id)
 }
 
+async function readImageFromFile(file: File): Promise<string | ArrayBuffer | null> {
+    return new Promise((res) => {
+        const reader = new FileReader()
+        
+        reader.onload = function() {
+            res(reader.result)
+        }
+        
+        reader.readAsDataURL(file)
+    })
+}
+
+function onDrop(e: DragEvent) {
+    const file = e.dataTransfer?.files?.[0]
+    e.preventDefault()
+    
+    if (file) {
+        readImageFromFile(file)
+            .then(r => {
+                curImage = r?.toString() ?? null
+            })
+    }
+    
+}
+
+function cancelImage() {
+    curImage = null
+}
+
 onMount(() => {
     socket.emit('get-chats', (initChats: Chat[]) => {
         chats = initChats
@@ -48,16 +98,42 @@ onMount(() => {
 
 </script>
 
-<div class="h-full flex flex-col bg-gray-200">
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<!-- svelte-ignore a11y_mouse_events_have_key_events -->
+<div
+    class="flex flex-col bg-gray-200"
+    ondragover={e => e.preventDefault()}
+    ondrop={onDrop}
+>
+    {#if curImage}
+    <div class="flex items-center justify-center relative p-4">
+        <img
+            alt="img"
+            src={curImage}
+        />
+        
+        <button
+            class="absolute right-3 top-1 text-gray-500 text-lg"
+            onclick={cancelImage}
+        >x</button>
+    </div>
+    {:else}
     <div class="flex-1 p-4 flex flex-col">
         {#each chats as chat}
             {#if chat.userId === selfId}
-            <div class="bg-emerald-300 my-1 p-3 rounded-lg flex flex-col self-end ml-8 relative group">
+            <div class="bg-orange-300 my-1 p-3 rounded-lg flex flex-col self-end ml-8 relative group">
                 <span class="text-sm text-gray-700 mr-6">Kamu</span>
                 {#if chat.replyChatId}
                 <div class="bg-white/30 px-2 py-1 text-sm my-1">
                     { getChatById(chat.replyChatId)?.message }
                 </div>
+                {/if}
+                {#if chat.messageType === "image"}
+                <img
+                    class="max-w-48"
+                    alt="img"
+                    src={chat.image}
+                />
                 {/if}
                 <span>{ chat.message }</span>
                 
@@ -76,6 +152,13 @@ onMount(() => {
                     { getChatById(chat.replyChatId)?.message }
                 </div>
                 {/if}
+                {#if chat.messageType === "image"}
+                <img
+                    class="max-w-48"
+                    alt="img"
+                    src={chat.image}
+                />
+                {/if}
                 <span>{ chat.message }</span>
                 
                 <button
@@ -89,6 +172,7 @@ onMount(() => {
         
         {/each}
     </div>
+    {/if}
     <div>
         {#if repliedChat}
         <div class="p-3 bg-black/10 flex flex-col rounded-t-lg relative">

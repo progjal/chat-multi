@@ -32,12 +32,14 @@ export async function getChatById(id: number): Promise<Chat> {
 export async function insertChat(chat: Chat): Promise<Chat> {
     return new Promise((res, rej) => {
         db.run(`
-            INSERT INTO chats (userId, userName, message, replyChatId)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO chats (userId, userName, messageType, message, image, replyChatId)
+            VALUES (?, ?, ?, ?, ?, ?)
         `, [
             chat.userId,
             chat.userName,
+            chat.messageType,
             chat.message,
+            chat.messageType === "image" ? chat.image : null,
             chat.replyChatId ?? null,
         ], function (err) {
             if (err) {
